@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Rocket, Globe, Sun, Moon } from "lucide-react";
+import { Rocket, Sun, Moon, User } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState, useRef } from "react";
 import { useGSAP } from "@gsap/react";
@@ -26,6 +26,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false); // ন্যাভবার প্রসারণের স্টেট
   
   // অ্যানিমেশনের জন্য Ref
   const rocketCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -48,6 +49,30 @@ export default function Navbar() {
     });
   }, []);
 
+  // 🖱️ Nav Link Hover Animation (Vertical Slide)
+  const handleLinkHover = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    const target = e.currentTarget.querySelector(".nav-text");
+    if (target) {
+      gsap.fromTo(
+        target,
+        { y: 0, opacity: 1 },
+        { 
+          y: -15, 
+          opacity: 0, 
+          duration: 0.2, 
+          ease: "power2.in",
+          onComplete: () => {
+            gsap.fromTo(
+              target,
+              { y: 15, opacity: 0 },
+              { y: 0, opacity: 1, duration: 0.3, ease: "back.out(1.5)" }
+            );
+          }
+        }
+      );
+    }
+  };
+
   // 🔥 রকেটের ফ্ল্যাম এবং স্মোক পার্টিকেল সিস্টেম
   useEffect(() => {
     const canvas = rocketCanvasRef.current;
@@ -55,7 +80,6 @@ export default function Navbar() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // ক্যানভাসের সাইজ (লোগোর চেয়ে সামান্য বড় রাখা হয়েছে যাতে কণাগুলো বাইরে ছড়াতে পারে)
     canvas.width = 60;
     canvas.height = 60;
 
@@ -65,15 +89,12 @@ export default function Navbar() {
     const renderParticles = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // রকেটের নজল (Bottom-Left) পজিশন: X ≈ 24, Y ≈ 36
-      
-      // ১. আগুন (Flame) পার্টিকেল তৈরি
       if (Math.random() < 0.7) {
         particles.push({
           x: 24 + (Math.random() - 0.5) * 2,
           y: 36 + (Math.random() - 0.5) * 2,
-          vx: -0.6 - Math.random() * 0.6, // বাঁ দিকে পুশ
-          vy: 0.6 + Math.random() * 0.6,  // নিচের দিকে পুশ
+          vx: -0.6 - Math.random() * 0.6, 
+          vy: 0.6 + Math.random() * 0.6,  
           size: 1.5 + Math.random() * 2,
           alpha: 1,
           life: 0,
@@ -83,7 +104,6 @@ export default function Navbar() {
         });
       }
 
-      // ২. ধোঁয়া (Smoke) পার্টিকেল তৈরি
       if (Math.random() < 0.5) {
         particles.push({
           x: 22 + (Math.random() - 0.5) * 3,
@@ -117,13 +137,13 @@ export default function Navbar() {
 
           const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
           if (p.colorSeed < 0.4) {
-            grad.addColorStop(0, '#fde047'); // Yellow
-            grad.addColorStop(0.5, '#f97316'); // Orange
-            grad.addColorStop(1, '#ef4444'); // Red
+            grad.addColorStop(0, '#fde047'); 
+            grad.addColorStop(0.5, '#f97316'); 
+            grad.addColorStop(1, '#ef4444'); 
           } else {
-            grad.addColorStop(0, '#ffffff'); // White core
-            grad.addColorStop(0.3, '#eab308'); // Yellow
-            grad.addColorStop(1, '#dc2626'); // Red
+            grad.addColorStop(0, '#ffffff'); 
+            grad.addColorStop(0.3, '#eab308'); 
+            grad.addColorStop(1, '#dc2626'); 
           }
 
           ctx.fillStyle = grad;
@@ -132,7 +152,6 @@ export default function Navbar() {
           ctx.fill();
           ctx.restore();
         } else {
-          // স্মোক আপডেট
           p.x += p.vx;
           p.y += p.vy;
           p.size += 0.15;
@@ -181,7 +200,6 @@ export default function Navbar() {
       {/* Left Section: Logo & Brand */}
       <Link href="/" className="flex items-center gap-3 group">
         <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-cyan-100 dark:bg-cyan-950/50 border border-cyan-500/30 group-hover:shadow-[0_0_15px_#00E5FF] transition-all duration-300">
-          {/* Animated Rocket Wrapper */}
           <div className="navbar-rocket relative flex items-center justify-center w-full h-full">
             <Rocket className="w-5 h-5 text-cyan-600 dark:text-[#00E5FF] relative z-10" />
             <canvas 
@@ -196,49 +214,63 @@ export default function Navbar() {
         </span>
       </Link>
 
-      {/* Center Section: Navigation Links */}
-      <nav className="hidden md:flex items-center gap-2 lg:gap-6">
-        {navLinks.map((link) => {
-          const isActive = pathname === link.path;
+      {/* Center Section: Navigation Links (শুধুমাত্র Get Started ক্লিকের পরে দৃশ্যমান হবে) */}
+      {isExpanded && (
+        <nav className="hidden md:flex items-center gap-2 lg:gap-6 transition-all duration-500 animate-in fade-in slide-in-from-top-2">
+          {navLinks.map((link) => {
+            const isActive = pathname === link.path;
 
-          return (
-            <Link
-              key={link.name}
-              href={link.path}
-              className={`relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                isActive
-                  ? "bg-cyan-100 dark:bg-cyan-950/40 text-cyan-700 dark:text-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.4)]"
-                  : "text-slate-600 dark:text-[#A1A1AA] hover:text-cyan-600 dark:hover:text-[#00E5FF] hover:bg-slate-100 dark:hover:bg-white/5"
-              }`}
-            >
-              {link.name}
-            </Link>
-          );
-        })}
-      </nav>
+            return (
+              <Link
+                key={link.name}
+                href={link.path}
+                onMouseEnter={handleLinkHover}
+                className={`relative px-4 py-2 rounded-full text-sm font-medium transition-colors duration-300 overflow-hidden flex items-center justify-center ${
+                  isActive
+                    ? "bg-cyan-100 dark:bg-cyan-950/40 text-cyan-700 dark:text-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.4)]"
+                    : "text-slate-600 dark:text-[#A1A1AA] hover:text-cyan-600 dark:hover:text-[#00E5FF] hover:bg-slate-100 dark:hover:bg-white/5"
+                }`}
+              >
+                <span className="nav-text block">{link.name}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      )}
 
-      {/* Right Section: Explore & Theme Toggle */}
-      <div className="flex items-center gap-6">
-        <button className="flex items-center gap-2 group">
-          <Globe className="w-5 h-5 text-slate-600 dark:text-[#A1A1AA] group-hover:text-cyan-600 dark:group-hover:text-[#00E5FF] transition-colors duration-300" />
-          <span className="text-sm font-medium text-slate-600 dark:text-[#A1A1AA] group-hover:text-cyan-600 dark:group-hover:text-[#00E5FF] transition-colors duration-300">
-            Explore
-          </span>
-        </button>
-
-        {/* Theme Toggle Button */}
-        {mounted && (
+      {/* Right Section: Interactive Area */}
+      <div className="flex items-center gap-4 lg:gap-6">
+        {!isExpanded ? (
+          /* Get Started Button (প্রাথমিক অবস্থায় থাকবে) */
           <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="p-2 rounded-full bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 transition-colors duration-300"
-            aria-label="Toggle Dark Mode"
+            onClick={() => setIsExpanded(true)}
+            className="px-5 py-2.5 rounded-full text-sm font-semibold tracking-wide text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] hover:shadow-[0_0_25px_rgba(6,182,212,0.6)] transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]"
           >
-            {theme === "dark" ? (
-              <Sun className="w-5 h-5 text-orange-400" />
-            ) : (
-              <Moon className="w-5 h-5 text-slate-700" />
-            )}
+            Get Started
           </button>
+        ) : (
+          /* Get Started ক্লিকের পর থিম টগল এবং গোল প্রোফাইল সেকশন আসবে */
+          <>
+            {/* Theme Toggle Button */}
+            {mounted && (
+              <button
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="p-2 rounded-full bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 transition-colors duration-300 animate-in fade-in zoom-in-75"
+                aria-label="Toggle Dark Mode"
+              >
+                {theme === "dark" ? (
+                  <Sun className="w-5 h-5 text-orange-400" />
+                ) : (
+                  <Moon className="w-5 h-5 text-slate-700" />
+                )}
+              </button>
+            )}
+
+            {/* Premium Circular Profile Section */}
+            <div className="w-10 h-10 rounded-full border-2 border-cyan-500/30 hover:border-cyan-400 shadow-[0_0_10px_rgba(0,229,255,0.2)] hover:shadow-[0_0_15px_rgba(0,229,255,0.4)] transition-all duration-300 overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center cursor-pointer animate-in fade-in zoom-in-75">
+              <User className="w-5 h-5 text-slate-600 dark:text-[#00E5FF]" />
+            </div>
+          </>
         )}
       </div>
     </header>
