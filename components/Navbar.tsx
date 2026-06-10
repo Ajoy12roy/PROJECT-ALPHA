@@ -196,10 +196,13 @@ export default function Navbar() {
                   {theme === "dark" ? <Sun className="w-5 h-5 text-orange-400" /> : <Moon className="w-5 h-5 text-slate-700" />}
                 </button>
               )}
-              {/* Profile Wrapper */}
-              <div className="w-10 h-10 rounded-full border-2 border-cyan-500/30 hover:border-cyan-400 shadow-[0_0_10px_rgba(0,229,255,0.2)] bg-slate-100 dark:bg-slate-800 flex items-center justify-center cursor-pointer transition-all">
+              {/* Profile Link Wrapper */}
+              <Link 
+                href="/profile"
+                className="w-10 h-10 rounded-full border-2 border-cyan-500/30 hover:border-cyan-400 shadow-[0_0_10px_rgba(0,229,255,0.2)] bg-slate-100 dark:bg-slate-800 flex items-center justify-center cursor-pointer transition-all"
+              >
                 <User className="w-5 h-5 text-slate-600 dark:text-[#00E5FF]" />
-              </div>
+              </Link>
             </>
           )}
         </div>

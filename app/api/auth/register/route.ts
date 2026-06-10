@@ -5,25 +5,30 @@ import bcrypt from "bcryptjs";
 
 export async function POST(request: Request) {
   try {
+    // ডাটাবেজ কানেক্ট করা হচ্ছে
     await connectToDatabase();
+    
     const { name, email, password } = await request.json();
 
     if (!name || !email || !password) {
-      return NextResponse.json({ error: "সবগুলো ফিল্ড পূরণ করুন" }, { status: 400 });
+      return NextResponse.json({ error: "Please fill in all fields" }, { status: 400 });
     }
 
+    // ইমেইল ইতিমধ্যে আছে কিনা চেক
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return NextResponse.json({ error: "এই ইমেইলটি ইতিমধ্যে নিবন্ধিত" }, { status: 400 });
+      return NextResponse.json({ error: "This email is already registered." }, { status: 400 });
     }
 
+    // পাসওয়ার্ড হ্যাশ করা
     const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // নতুন ইউজার তৈরি
     await User.create({ name, email, password: hashedPassword });
 
-    return NextResponse.json({ message: "অ্যাকাউন্ট তৈরি সফল হয়েছে" }, { status: 201 });
+    return NextResponse.json({ message: "Successfully create account" }, { status: 201 });
   } catch (error: any) {
-    // টার্মিনালে আসল এরর প্রিন্ট করবে
-    console.error("Registration Error:", error); 
-    return NextResponse.json({ error: "সার্ভার এরর: ডাটাবেজ কানেকশন বা অন্য সমস্যা" }, { status: 500 });
+    console.error("Registration Error:", error);
+    return NextResponse.json({ error: "Database connection or server error occurred" }, { status: 500 });
   }
 }
