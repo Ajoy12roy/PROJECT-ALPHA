@@ -57,8 +57,6 @@ interface RocketParticle {
   type: 'smoke';
 }
 
-// ---------------- ডেটা অ্যারে শুরু ---------------- //
-
 const marsMissions = [
   { year: "1965", name: "Mariner 4", type: "Flyby" },
   { year: "1971", name: "Mars 2", type: "Orbiter & Lander" },
@@ -90,7 +88,6 @@ const researchPapers = [
     journal: "Nature",
     link: "https://www.sciencedirect.com/science/article/pii/S001910351500175X?utm_source=chatgpt.com" 
   },
-
   {
     id: 3,
     title: "Methane Detection in Gale Crater",
@@ -99,7 +96,7 @@ const researchPapers = [
     journal: "Science",
     link: "https://www.science.org/doi/10.1126/science.1261713?utm_source=chatgpt.com" 
   },
-    {
+  {
     id: 4,
     title: "Subsurface Ice Deposits in the Martian Mid-Latitudes",
     author: "Dundas, C. M. et al.",
@@ -125,7 +122,6 @@ const researchPapers = [
   },
 ];
 
-// 📊 গ্রাফের জন্য ডায়নামিক ডেটা (Hover করলে এই ডেটা শো করবে)
 const atmosphereGraphData = [
   { x: 0, label: "1M", co2: 95.3, n2: 2.7, ar: 1.6 },
   { x: 20, label: "2M", co2: 94.8, n2: 2.9, ar: 1.8 },
@@ -135,8 +131,6 @@ const atmosphereGraphData = [
   { x: 100, label: "6M", co2: 95.3, n2: 2.8, ar: 1.6 },
 ];
 
-// ---------------- ডেটা অ্যারে শেষ ---------------- //
-
 export default function MarsPage() {
   const marsContainerRef = useRef<HTMLDivElement>(null);
   const rocketCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -145,6 +139,12 @@ export default function MarsPage() {
   const [stars, setStars] = useState<Star[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false); 
   const [activeGraphPoint, setActiveGraphPoint] = useState<number | null>(null);
+
+  // 🆕 নতুন আপলোড স্টেটস 
+  const [file, setFile] = useState<File | null>(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   const tagText = useTypewriter("The Red Planet", 50, 500);
   const title1 = useTypewriter("MARS :", 80, 1500);
@@ -171,7 +171,6 @@ export default function MarsPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 🎬 স্ক্রল করলে ভিডিও অটো-প্লে এবং পজ করার লজিক
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement) return;
@@ -196,7 +195,6 @@ export default function MarsPage() {
     };
   }, []);
 
-  // 💨 শুধুমাত্র রকেটের স্মোক (Smoke) অ্যানিমেশন
   useEffect(() => {
     const canvas = rocketCanvasRef.current;
     if (!canvas) return;
@@ -298,6 +296,49 @@ export default function MarsPage() {
     }
   }, { scope: marsContainerRef, dependencies: [stars] }); 
 
+  // 🆕 ফাইল হ্যান্ডলার
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  // 🆕 সাবমিট হ্যান্ডলার
+  const handleSubmitFile = async () => {
+    if (!file || !name || !email) {
+      alert("Please provide your name, email, and select a file.");
+      return;
+    }
+    
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("name", name);
+    formData.append("email", email);
+
+    try {
+      const response = await fetch("/api/research/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        alert("Research submitted successfully! Admin has been notified.");
+        setIsModalOpen(false);
+        setFile(null);
+        setName("");
+        setEmail("");
+      } else {
+        const errorData = await response.json();
+        alert(`Upload failed: ${errorData.error}`);
+      }
+    } catch (error) {
+      alert("Error uploading file. Please try again later.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <div 
       ref={marsContainerRef} 
@@ -317,7 +358,6 @@ export default function MarsPage() {
         ))}
       </div>
 
-      {/* --- হিরো সেকশন --- */}
       <section className="min-h-screen w-full max-w-7xl mx-auto flex items-center justify-center relative z-10 px-6 md:px-6 pt-24 md:pt-0">
         <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
           
@@ -382,9 +422,7 @@ export default function MarsPage() {
         </div>
       </section>
 
-      {/* --- ইনফো কার্ড এবং ভিডিও সেকশন --- */}
       <section className="relative z-10 max-w-7xl mx-auto px-6 md:px-16 pb-24">
-        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
           <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/10 backdrop-blur-md rounded-2xl p-6 shadow-[0_4px_20px_rgba(14,165,233,0.05)] hover:shadow-[0_8px_30px_rgba(14,165,233,0.15)] dark:shadow-none hover:-translate-y-1 transition-all duration-300">
             <Thermometer className="w-6 h-6 text-sky-500 dark:text-cyan-400 mb-4" />
@@ -408,7 +446,6 @@ export default function MarsPage() {
           </div>
         </div>
 
-        {/* 🎬 Video Player */}
         <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/10 backdrop-blur-md rounded-4xl p-6 md:p-10 shadow-[0_10px_40px_rgba(14,165,233,0.1)] dark:shadow-lg mb-24 transition-all duration-300">
           <div className="flex items-center gap-3 mb-6">
             <Activity className="w-8 h-8 text-sky-500 dark:text-cyan-400 animate-pulse" />
@@ -432,7 +469,6 @@ export default function MarsPage() {
           </p>
         </div>
 
-        {/* --- Timeline Section --- */}
         <div className="mb-24">
           <div className="flex items-center gap-3 mb-10">
             <div className="relative inline-flex items-center justify-center rocket-animated-wrapper w-8 h-8">
@@ -470,7 +506,6 @@ export default function MarsPage() {
           </div>
         </div>
 
-        {/* --- Research and Papers --- */}
         <div className="mb-24">
           <div className="flex items-center gap-3 mb-10">
             <FileText className="w-8 h-8 text-sky-500 dark:text-cyan-400" />
@@ -508,13 +543,9 @@ export default function MarsPage() {
           </div>
         </div>
 
-        {/* --- সেকশন ১: Probability of Life --- */}
         <div className="mb-24 bg-white dark:bg-[#1a202c] rounded-3xl p-8 shadow-sm border border-slate-200 dark:border-slate-800">
           <h2 className="text-3xl font-bold text-slate-800 dark:text-white text-center mb-16 tracking-tight">Possibility of Life</h2>
-          
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            
-            {/* Left Side: Habitability Score (Ring Chart) */}
             <div className="flex flex-col items-center">
               <h3 className="text-xl font-semibold text-slate-800 dark:text-white mb-8">Habitability Score</h3>
               <div className="relative group flex flex-col items-center cursor-pointer">
@@ -536,74 +567,56 @@ export default function MarsPage() {
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   />
                 </svg>
-                
                 <div className="mt-8 text-center">
                   <span className="text-5xl font-black text-orange-500 block">42%</span>
                   <span className="text-sm text-slate-600 dark:text-slate-400 mt-2 block">Potential for microbial life</span>
                 </div>
-
                 <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white dark:bg-white dark:text-slate-900 font-bold text-xs py-2 px-4 rounded-lg pointer-events-none whitespace-nowrap shadow-xl z-20">
                   Microbial Life Probability: 42%
                 </div>
               </div>
             </div>
 
-            {/* Right Side: Atmospheric Composition (Interactive Line Chart) */}
             <div className="flex flex-col items-center lg:items-start w-full">
               <h3 className="text-xl font-semibold text-slate-800 dark:text-white mb-10 text-center w-full">Atmospheric Composition</h3>
-              
-              {/* 📈 Dynamic Line Graph Area */}
               <div className="relative w-full h-55 border-l-2 border-b-2 border-slate-300 dark:border-slate-700 flex flex-col justify-between pb-2 pl-2">
-                
-                {/* Y-axis labels (High contrast for Light Mode) */}
                 <div className="absolute -left-8 top-0 text-xs font-semibold text-slate-700 dark:text-slate-400">100</div>
                 <div className="absolute -left-6 top-[25%] text-xs font-semibold text-slate-700 dark:text-slate-400">75</div>
                 <div className="absolute -left-6 top-[50%] text-xs font-semibold text-slate-700 dark:text-slate-400">50</div>
                 <div className="absolute -left-6 top-[75%] text-xs font-semibold text-slate-700 dark:text-slate-400">25</div>
                 <div className="absolute -left-4 bottom-0 text-xs font-semibold text-slate-700 dark:text-slate-400">0</div>
 
-                {/* Background Grid Lines */}
                 <div className="absolute top-[25%] left-0 right-0 border-t border-dashed border-slate-300 dark:border-slate-800 pointer-events-none" />
                 <div className="absolute top-[50%] left-0 right-0 border-t border-dashed border-slate-300 dark:border-slate-800 pointer-events-none" />
                 <div className="absolute top-[75%] left-0 right-0 border-t border-dashed border-slate-300 dark:border-slate-800 pointer-events-none" />
 
-                {/* 1. SVG Line Chart Rendering */}
                 <svg className="absolute inset-0 w-full h-full overflow-visible pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100">
-                  {/* CO2 Line (Cyan) */}
                   <polyline
                     points={atmosphereGraphData.map(d => `${d.x},${100 - d.co2}`).join(" ")}
                     fill="none" stroke="#0ea5e9" strokeWidth="2.5" vectorEffect="non-scaling-stroke"
                   />
-                  {/* N2 Line (Orange) */}
                   <polyline
                     points={atmosphereGraphData.map(d => `${d.x},${100 - d.n2}`).join(" ")}
                     fill="none" stroke="#f97316" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeDasharray="4 2"
                   />
-                  {/* Ar Line (Blue) */}
                   <polyline
                     points={atmosphereGraphData.map(d => `${d.x},${100 - d.ar}`).join(" ")}
                     fill="none" stroke="#3b82f6" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeDasharray="2 2"
                   />
-                  
-                  {/* Dots for CO2 */}
                   {atmosphereGraphData.map((d, i) => (
                     <circle key={`co2-${i}`} cx={d.x} cy={100 - d.co2} r={activeGraphPoint === i ? "4" : "2.5"} fill="white" stroke="#0ea5e9" strokeWidth="1.5" vectorEffect="non-scaling-stroke" className="transition-all duration-200" />
                   ))}
-                  {/* Dots for N2 */}
                   {atmosphereGraphData.map((d, i) => (
                     <circle key={`n2-${i}`} cx={d.x} cy={100 - d.n2} r={activeGraphPoint === i ? "3" : "2"} fill="white" stroke="#f97316" strokeWidth="1.5" vectorEffect="non-scaling-stroke" className="transition-all duration-200" />
                   ))}
-                  {/* Dots for Ar */}
                   {atmosphereGraphData.map((d, i) => (
                     <circle key={`ar-${i}`} cx={d.x} cy={100 - d.ar} r={activeGraphPoint === i ? "3" : "2"} fill="white" stroke="#3b82f6" strokeWidth="1.5" vectorEffect="non-scaling-stroke" className="transition-all duration-200" />
                   ))}
                 </svg>
 
-                {/* 2. Interactive Hover Zones */}
                 {atmosphereGraphData.map((d, i) => {
                   const width = i === 0 || i === atmosphereGraphData.length - 1 ? 10 : 20;
                   const left = Math.max(0, d.x - (i === 0 ? 0 : 10));
-                  
                   return (
                     <div
                       key={`zone-${i}`}
@@ -615,15 +628,12 @@ export default function MarsPage() {
                   );
                 })}
 
-                {/* 3. Hover Guide Line & Tooltip */}
                 {activeGraphPoint !== null && (
                   <>
                     <div 
                       className="absolute top-0 bottom-0 w-px bg-slate-500 dark:bg-slate-400 pointer-events-none z-10 transition-all duration-100"
                       style={{ left: `${atmosphereGraphData[activeGraphPoint].x}%` }}
                     />
-                    
-                    {/* Tooltip Card */}
                     <div 
                       className="absolute -top-4 -translate-y-full -translate-x-1/2 bg-slate-800 dark:bg-white border border-slate-700 dark:border-slate-200 text-white dark:text-slate-900 p-3 rounded-xl shadow-2xl w-36 z-30 pointer-events-none transition-all duration-100"
                       style={{ left: `${atmosphereGraphData[activeGraphPoint].x}%` }}
@@ -643,8 +653,6 @@ export default function MarsPage() {
                     </div>
                   </>
                 )}
-
-                {/* X-axis labels */}
                 <div className="absolute -bottom-8 left-0 right-0 flex justify-between px-2 text-xs font-bold text-slate-700 dark:text-slate-400">
                   {atmosphereGraphData.map((d, i) => (
                     <span key={`x-label-${i}`}>{d.label}</span>
@@ -652,7 +660,6 @@ export default function MarsPage() {
                 </div>
               </div>
 
-              {/* Data Summary Legend below chart */}
               <div className="flex justify-between w-full mt-14 px-4 relative z-0">
                 <div className="text-center">
                   <div className="text-2xl font-black text-sky-500">~95%</div>
@@ -667,12 +674,10 @@ export default function MarsPage() {
                   <div className="text-sm font-semibold text-slate-700 dark:text-slate-400">Argon</div>
                 </div>
               </div>
-
             </div>
           </div>
         </div>
 
-        {/* --- সেকশন ২: Future Colonization --- */}
         <div className="mb-24">
           <div className="bg-linear-to-r from-slate-800 to-slate-900 dark:from-[#1a2235] dark:to-[#111827] rounded-4xl p-10 md:p-16 text-center shadow-xl border border-slate-700/50">
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Future Colonization</h2>
@@ -690,7 +695,7 @@ export default function MarsPage() {
 
       </section>
 
-      {/* --- Modal / Pop-up for File Upload --- */}
+      {/* 🆕 আপডেটেড Modal / Pop-up for File Upload */}
       {isModalOpen && (
         <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4 transition-opacity">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-lg w-full shadow-2xl relative border border-slate-200 dark:border-slate-700 transform scale-100 animate-in fade-in zoom-in duration-200">
@@ -703,21 +708,46 @@ export default function MarsPage() {
             </button>
 
             <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-4">Upload Research File</h3>
-            <p className="text-slate-600 dark:text-slate-400 text-sm mb-8 leading-relaxed">
-              Please select your research file. After uploading, we will review it. Once it is verified, and if approved, your file will be published on the website.
+            <p className="text-slate-600 dark:text-slate-400 text-sm mb-6 leading-relaxed">
+              Please enter your details and select your research file. Once approved, your file will be published on the website.
             </p>
+
+            {/* ইনপুট ফিল্ডস */}
+            <div className="mb-4">
+              <input 
+                type="text" 
+                placeholder="Full Name" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-sky-500"
+                required
+              />
+            </div>
+            
+            <div className="mb-6">
+              <input 
+                type="email" 
+                placeholder="Email Address" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-sky-500"
+                required
+              />
+            </div>
 
             <div className="mb-8">
               <div className="border-2 border-dashed border-sky-300 dark:border-slate-600 rounded-2xl p-8 text-center bg-sky-50/50 dark:bg-slate-800/30 hover:bg-sky-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer relative">
                 <input 
                   type="file" 
                   id="file-upload"
+                  accept=".pdf,.docx"
+                  onChange={handleFileChange}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
                 />
                 <div className="flex flex-col items-center justify-center gap-3 pointer-events-none">
                   <UploadCloud className="w-12 h-12 text-sky-500 dark:text-cyan-400" />
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Click to browse or drag file here
+                    {file ? file.name : "Click to browse or drag file here"}
                   </span>
                   <span className="text-xs text-slate-500">Supported formats: PDF, DOCX (Max 10MB)</span>
                 </div>
@@ -725,10 +755,11 @@ export default function MarsPage() {
             </div>
 
             <button 
-              onClick={() => setIsModalOpen(false)} 
-              className="w-full py-3.5 bg-sky-500 hover:bg-sky-600 dark:bg-[#00E5FF] dark:hover:bg-cyan-400 dark:text-slate-900 text-white font-bold rounded-xl transition-all shadow-lg"
+              onClick={handleSubmitFile}
+              disabled={isUploading}
+              className={`w-full py-3.5 ${isUploading ? 'bg-sky-400 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-600'} dark:bg-[#00E5FF] dark:hover:bg-cyan-400 dark:text-slate-900 text-white font-bold rounded-xl transition-all shadow-lg`}
             >
-              Submit File
+              {isUploading ? "Submitting..." : "Submit File"}
             </button>
           </div>
         </div>
