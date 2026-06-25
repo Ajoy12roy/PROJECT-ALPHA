@@ -5,30 +5,46 @@ import bcrypt from "bcryptjs";
 
 export async function POST(request: Request) {
   try {
-    // ডাটাবেজ কানেক্ট করা হচ্ছে
+    // ১. ডাটাবেজ কানেক্ট করা
     await connectToDatabase();
     
+    // ২. ফ্রন্টএন্ড থেকে ডাটা রিসিভ করা
     const { name, email, password } = await request.json();
 
+    // ৩. ডাটা ভ্যালিডেশন
     if (!name || !email || !password) {
-      return NextResponse.json({ error: "Please fill in all fields" }, { status: 400 });
+      return NextResponse.json({ error: "Name, email, and password are required" }, { status: 400 });
     }
 
-    // ইমেইল ইতিমধ্যে আছে কিনা চেক
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return NextResponse.json({ error: "This email is already registered." }, { status: 400 });
+    // ৪. ইমেইল আগে থেকেই আছে কি না চেক করা
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return NextResponse.json({ error: "Email is already registered" }, { status: 400 });
     }
 
-    // পাসওয়ার্ড হ্যাশ করা
+    // ৫. পাসওয়ার্ড হ্যাশ (Hash) বা সিকিউর করা
     const hashedPassword = await bcrypt.hash(password, 10);
-    
-    // নতুন ইউজার তৈরি
-    await User.create({ name, email, password: hashedPassword });
 
-    return NextResponse.json({ message: "Successfully create account" }, { status: 201 });
-  } catch (error: any) {
-    console.error("Registration Error:", error);
-    return NextResponse.json({ error: "Database connection or server error occurred" }, { status: 500 });
+    // ৬. নতুন ইউজার ডাটাবেজে সেভ করা
+    const newUser = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+    });
+
+    // ৭. সফল মেসেজ পাঠানো
+    return NextResponse.json({
+      message: "Account created successfully",
+      user: { id: newUser._id, name: newUser.name, email: newUser.email }
+    }, { status: 201 });
+
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Registration Error Details:", errorMessage);
+    
+    return NextResponse.json({ 
+      error: "Database connection or server error occurred", 
+      details: errorMessage 
+    }, { status: 500 });
   }
 }

@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import nodemailer from "nodemailer";
-import { connectDB } from "@/lib/mongodb"; // আপনার মঙ্গোডিবি কানেকশন ফাইলের পাথ অনুযায়ী এটি চেক করে নিবেন
+// ফিক্স ১: connectDB পরিবর্তন করে connectToDatabase করা হয়েছে
+import { connectToDatabase } from "@/lib/mongodb"; 
 import { Research } from "@/models/Research";
 
 export async function POST(req: Request) {
   try {
-    // ১. ডাটাবেজ কানেক্ট করা
-    await connectDB();
+    // ১. ডাটাবেজ কানেক্ট করা (সঠিক ফাংশন কল করা হয়েছে)
+    await connectToDatabase();
 
     // ২. ফ্রন্টএন্ড থেকে FormData রিসিভ করা
     const formData = await req.formData();
@@ -86,8 +87,12 @@ The uploaded file is attached to this email.`,
     await transporter.sendMail(mailOptions);
 
     return NextResponse.json({ success: true, message: "Submission successful!", data: submission });
-  } catch (error: any) {
+    
+  } catch (error: unknown) { 
+    // ফিক্স ২: ESLint এরর সমাধানের জন্য 'any' এর বদলে 'unknown' ব্যবহার করা হয়েছে
+    const errorMessage = error instanceof Error ? error.message : "Something went wrong";
     console.error("Upload Error:", error);
-    return NextResponse.json({ error: error.message || "Something went wrong" }, { status: 500 });
+    
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

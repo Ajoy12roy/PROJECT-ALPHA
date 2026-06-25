@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { Thermometer, Mountain, Clock, Orbit, Activity, Rocket, FileText, ExternalLink, Calendar, UploadCloud, X } from "lucide-react";
+import { Thermometer, Mountain, Clock, Orbit, Activity, Rocket, FileText, ExternalLink, Calendar, UploadCloud, X, CheckCircle2 } from "lucide-react";
 
 // কাস্টম হুক: নিখুঁত টাইপরাইটার অ্যানিমেশন তৈরি করার জন্য
 function useTypewriter(text: string, speed: number = 40, delay: number = 0) {
@@ -138,9 +138,9 @@ export default function MarsPage() {
 
   const [stars, setStars] = useState<Star[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false); 
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false); // 🆕 Premium success modal state
   const [activeGraphPoint, setActiveGraphPoint] = useState<number | null>(null);
 
-  // 🆕 নতুন আপলোড স্টেটস 
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -296,14 +296,12 @@ export default function MarsPage() {
     }
   }, { scope: marsContainerRef, dependencies: [stars] }); 
 
-  // 🆕 ফাইল হ্যান্ডলার
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0]);
     }
   };
 
-  // 🆕 সাবমিট হ্যান্ডলার
   const handleSubmitFile = async () => {
     if (!file || !name || !email) {
       alert("Please provide your name, email, and select a file.");
@@ -323,8 +321,8 @@ export default function MarsPage() {
       });
 
       if (response.ok) {
-        alert("Research submitted successfully! Admin has been notified.");
-        setIsModalOpen(false);
+        setIsModalOpen(false); 
+        setIsSuccessOpen(true); // 🆕 Trigger premium success modal
         setFile(null);
         setName("");
         setEmail("");
@@ -707,7 +705,7 @@ export default function MarsPage() {
               <X className="w-4 h-4" />
             </button>
 
-            <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-4">Upload Research File</h3>
+            <h3 className="text-2xl font-black text-center text-slate-800 dark:text-white mb-4">Upload Research File</h3>
             <p className="text-slate-600 dark:text-slate-400 text-sm mb-6 leading-relaxed">
               Please enter your details and select your research file. Once approved, your file will be published on the website.
             </p>
@@ -761,6 +759,46 @@ export default function MarsPage() {
             >
               {isUploading ? "Submitting..." : "Submit File"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 🆕 Premium Success Modal overlay*/}
+      {isSuccessOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/70 backdrop-blur-md px-4 transition-all duration-300">
+          <div className="bg-white dark:bg-[#0f172a] rounded-3xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(0,229,255,0.25)] dark:shadow-[0_0_50px_rgba(0,229,255,0.15)] relative border border-slate-200 dark:border-slate-800/80 text-center transform scale-100 animate-in fade-in zoom-in-95 duration-300">
+            
+            <button 
+              onClick={() => setIsSuccessOpen(false)} 
+              className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex flex-col items-center justify-center pt-4">
+              {/* Premium animated pulsing success ring */}
+              <div className="relative mb-6 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-emerald-500/20 dark:bg-cyan-500/20 animate-ping opacity-75 duration-1000" />
+                <div className="relative w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-500 dark:from-[#00E5FF] dark:to-cyan-600 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20 dark:shadow-cyan-500/20">
+                  <CheckCircle2 className="w-10 h-10 text-white animate-in zoom-in duration-300 delay-100" />
+                </div>
+              </div>
+
+              <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-3 tracking-tight">
+                Submission Successful!
+              </h3>
+              
+              <p className="text-slate-600 dark:text-slate-300 text-sm font-medium mb-8 leading-relaxed max-w-sm">
+                Your request has been submitted successfully. Please wait for the admin's decision.
+              </p>
+
+              <button 
+                onClick={() => setIsSuccessOpen(false)}
+                className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 dark:from-[#00E5FF] dark:to-cyan-500 dark:text-slate-900 text-white font-bold rounded-xl transition-all shadow-md hover:opacity-95 active:scale-95"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
