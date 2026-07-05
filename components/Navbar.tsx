@@ -26,13 +26,42 @@ export default function Navbar() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // অথেন্টিকেশন চেক স্টেট
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // মোডাল ওপেন স্টেট
+  const [isLoggedIn, setIsLoggedIn] = useState(false); 
+  const [userProfilePic, setUserProfilePic] = useState<string | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); 
   
   const rocketCanvasRef = useRef<HTMLCanvasElement>(null);
 
+  // লোকাল স্টোরেজ চেক করার ফাংশন
+  const checkLoginState = () => {
+    // setTimeout ব্যবহার করে রেন্ডার সাইকেলের বাইরে স্টেট আপডেট করা হচ্ছে
+    // এর ফলে "setState in render" এরর আর আসবে না এবং লগআউটে ছবি ঠিকমতো রিমুভ হবে
+    setTimeout(() => {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        setIsLoggedIn(true);
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setUserProfilePic(parsedUser.profilePic || null);
+        } catch (e) {
+          console.error("Error parsing user data");
+          setUserProfilePic(null);
+        }
+      } else {
+        // ইউজার না থাকলে লগইন ফলস এবং প্রোফাইল পিকচার নাল করে দিবে
+        setIsLoggedIn(false);
+        setUserProfilePic(null);
+      }
+    }, 0);
+  };
+
   useEffect(() => {
     setMounted(true);
+    checkLoginState(); // পেজ লোড হলে চেক করবে
+
+    // অন্য কম্পোনেন্ট থেকে স্টোরেজ পরিবর্তন হলে আপডেট করবে
+    window.addEventListener('userUpdated', checkLoginState);
+    return () => window.removeEventListener('userUpdated', checkLoginState);
   }, []);
 
   useGSAP(() => {
@@ -141,7 +170,6 @@ export default function Navbar() {
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50 h-20 flex items-center justify-between px-8 backdrop-blur-md bg-white/70 dark:bg-[#020617]/80 border-b border-slate-200 dark:border-white/10 transition-all duration-300">
-        {/* Logo & Brand */}
         <Link href="/" className="flex items-center gap-3 group">
           <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-cyan-100 dark:bg-cyan-950/50 border border-cyan-500/30 group-hover:shadow-[0_0_15px_#00E5FF] transition-all duration-300">
             <div className="navbar-rocket relative flex items-center justify-center w-full h-full">
@@ -154,7 +182,6 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* Center Planetchips (শুধুমাত্র সফল লগইনের পর দৃশ্যমান হবে) */}
         {isLoggedIn && (
           <nav className="hidden md:flex items-center gap-2 lg:gap-6 transition-all duration-500 animate-in fade-in slide-in-from-top-2">
             {navLinks.map((link) => {
@@ -177,7 +204,6 @@ export default function Navbar() {
           </nav>
         )}
 
-        {/* Interactive Action Area */}
         <div className="flex items-center gap-4 lg:gap-6">
           {!isLoggedIn ? (
             <button
@@ -196,25 +222,32 @@ export default function Navbar() {
                   {theme === "dark" ? <Sun className="w-5 h-5 text-orange-400" /> : <Moon className="w-5 h-5 text-slate-700" />}
                 </button>
               )}
-              {/* Profile Link Wrapper */}
+              {/* Profile Icon / Image */}
               <Link 
                 href="/profile"
-                className="w-10 h-10 rounded-full border-2 border-cyan-500/30 hover:border-cyan-400 shadow-[0_0_10px_rgba(0,229,255,0.2)] bg-slate-100 dark:bg-slate-800 flex items-center justify-center cursor-pointer transition-all"
+                className="w-10 h-10 rounded-full border-2 border-cyan-500/30 hover:border-cyan-400 shadow-[0_0_10px_rgba(0,229,255,0.2)] bg-slate-100 dark:bg-slate-800 flex items-center justify-center cursor-pointer transition-all overflow-hidden"
               >
-                <User className="w-5 h-5 text-slate-600 dark:text-[#00E5FF]" />
+                {userProfilePic ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={userProfilePic} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-5 h-5 text-slate-600 dark:text-[#00E5FF]" />
+                )}
               </Link>
             </>
           )}
         </div>
       </header>
 
-      {/* Global Instance of Premium Auth Component */}
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
         onLoginSuccess={(userData) => {
-          setIsLoggedIn(true);
-          console.log("Logged In User:", userData);
+          // লগইন সফল হলে লোকাল স্টোরেজে ডাটা সেভ এবং আপডেট সিগন্যাল
+          const userToSave = { ...userData, profilePic: userData.profilePic || "" };
+          localStorage.setItem('user', JSON.stringify(userToSave));
+          checkLoginState();
+          setIsAuthModalOpen(false);
         }}
       />
     </>

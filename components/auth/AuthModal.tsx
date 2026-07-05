@@ -21,7 +21,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
 
   const rocketCanvasRef = useRef<HTMLCanvasElement>(null);
 
- 
   useEffect(() => {
     if (isOpen) {
       const generatedStars = Array.from({ length: 60 }).map((_, i) => ({
@@ -31,7 +30,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         delay: `${Math.random() * 3}s`,
         duration: `${2 + Math.random() * 3}s`,
       }));
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStars(generatedStars);
     }
   }, [isOpen]);
@@ -61,7 +59,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
           alpha: 1,
           maxLife: 15,
           life: 0,
-          color: Math.random() > 0.5 ? "#ef4444" : "#f97316" // 
+          color: Math.random() > 0.5 ? "#ef4444" : "#f97316" 
         });
       }
 
@@ -124,7 +122,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
   };
 
   return (
-    
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#050505] overflow-hidden">
       
       {stars.map((star) => (
@@ -141,7 +138,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         />
       ))}
 
-      
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes float-rocket {
           0%, 100% { transform: translateY(0); }
@@ -150,7 +146,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         .animate-float { animation: float-rocket 3s ease-in-out infinite; }
       `}} />
 
-     
       <div 
         className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border-2 border-emerald-500/50 bg-[#022c22]/80 p-8 shadow-[0_0_50px_rgba(16,185,129,0.3)] backdrop-blur-2xl"
       >
@@ -159,7 +154,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         </button>
 
         <div className="flex flex-col items-center mb-6">
-        
           <div className="relative flex items-center justify-center w-16 h-16 rounded-full bg-[#064e3b]/80 border-2 border-emerald-400/60 shadow-[0_0_25px_rgba(16,185,129,0.5)] animate-float">
             <Rocket className="w-7 h-7 text-emerald-400 -rotate-45 relative z-10" />
             <canvas ref={rocketCanvasRef} className="absolute pointer-events-none z-0" style={{ top: 0, left: 0 }} />

@@ -55,22 +55,63 @@ export default function ProfilePage() {
     setIsSettingsOpen(false); 
   };
 
-  // ছবি সিলেক্ট এবং Base64 এ কনভার্ট করার ফাংশন
+  // ছবি সিলেক্ট, রিসাইজ এবং Base64 এ কনভার্ট করার ফাংশন (QuotaExceededError Fix)
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setUserData((prev) => {
-          const newData = { ...prev, profilePic: base64String };
-          localStorage.setItem('user', JSON.stringify(newData)); // লোকাল স্টোরেজে সেভ
-          window.dispatchEvent(new Event('userUpdated')); // Navbar আপডেট সিগন্যাল
-          return newData;
-        });
-        setFormData((prev) => ({ ...prev, profilePic: base64String }));
+      
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          // ক্যানভাস তৈরি করে ছবির সাইজ ছোট করা
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 300; // প্রোফাইল ছবির জন্য 300px যথেষ্ট
+          const MAX_HEIGHT = 300;
+          let width = img.width;
+          let height = img.height;
+
+          // প্রপোরশন ঠিক রেখে সাইজ ক্যালকুলেট করা
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          // ছবিটিকে JPEG ফরম্যাটে 70% কোয়ালিটিতে কম্প্রেস করা
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+          setUserData((prev) => {
+            const newData = { ...prev, profilePic: compressedBase64 };
+            
+            // Try-Catch ব্লক ব্যবহার করা হলো যাতে লিমিট পার হলেও অ্যাপ ক্র্যাশ না করে
+            try {
+              localStorage.setItem('user', JSON.stringify(newData)); 
+              window.dispatchEvent(new Event('userUpdated')); 
+            } catch (error) {
+              console.error("Storage limit exceeded even after compression:", error);
+              alert("The image is still too large. Please select a smaller file.");
+            }
+            
+            return newData;
+          });
+          setFormData((prev) => ({ ...prev, profilePic: compressedBase64 }));
+        };
+        img.src = event.target?.result as string;
       };
-      reader.readAsDataURL(file); // File কে Base64 এ রূপান্তর
+      
+      reader.readAsDataURL(file); 
     }
   };
 
