@@ -34,21 +34,26 @@ export default function Navbar() {
 
   // লোকাল স্টোরেজ চেক করার ফাংশন
   const checkLoginState = () => {
-    // setTimeout ব্যবহার করে রেন্ডার সাইকেলের বাইরে স্টেট আপডেট করা হচ্ছে
-    // এর ফলে "setState in render" এরর আর আসবে না এবং লগআউটে ছবি ঠিকমতো রিমুভ হবে
     setTimeout(() => {
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
-        setIsLoggedIn(true);
         try {
           const parsedUser = JSON.parse(storedUser);
-          setUserProfilePic(parsedUser.profilePic || null);
+          // 🆕 এখন শুধু ডাটায় isLoggedIn ট্রু কিনা তা চেক করবে
+          if (parsedUser.isLoggedIn !== false) {
+            setIsLoggedIn(true);
+            setUserProfilePic(parsedUser.profilePic || null);
+          } else {
+            // ডাটা আছে কিন্তু লগআউট করা
+            setIsLoggedIn(false);
+            setUserProfilePic(null);
+          }
         } catch (e) {
           console.error("Error parsing user data");
+          setIsLoggedIn(false);
           setUserProfilePic(null);
         }
       } else {
-        // ইউজার না থাকলে লগইন ফলস এবং প্রোফাইল পিকচার নাল করে দিবে
         setIsLoggedIn(false);
         setUserProfilePic(null);
       }
@@ -57,9 +62,8 @@ export default function Navbar() {
 
   useEffect(() => {
     setMounted(true);
-    checkLoginState(); // পেজ লোড হলে চেক করবে
+    checkLoginState(); 
 
-    // অন্য কম্পোনেন্ট থেকে স্টোরেজ পরিবর্তন হলে আপডেট করবে
     window.addEventListener('userUpdated', checkLoginState);
     return () => window.removeEventListener('userUpdated', checkLoginState);
   }, []);
@@ -243,8 +247,27 @@ export default function Navbar() {
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
         onLoginSuccess={(userData) => {
-          // লগইন সফল হলে লোকাল স্টোরেজে ডাটা সেভ এবং আপডেট সিগন্যাল
-          const userToSave = { ...userData, profilePic: userData.profilePic || "" };
+          // 🆕 লগইন সফল হলে আগের সেভ করা ডাটা (ছবি, বায়ো) নতুন লগইনের সাথে মার্জ করা
+          const storedStr = localStorage.getItem('user');
+          let oldData: any = {};
+          
+          if (storedStr) {
+            try {
+              const parsed = JSON.parse(storedStr);
+              // যদি একই ইমেইল দিয়ে আবার লগইন করে, তবেই আগের ছবি ও বায়ো রিস্টোর হবে
+              if (parsed.email === userData.email) {
+                oldData = parsed;
+              }
+            } catch (e) {}
+          }
+
+          const userToSave = { 
+            ...oldData, // পুরোনো ছবি ও বায়ো
+            ...userData, // নতুন লগইনের ডাটা
+            isLoggedIn: true, // লগইন স্ট্যাটাস ট্রু 
+            profilePic: oldData.profilePic || userData.profilePic || "" // ছবি না মুছে থাকলে সেটা ফিরিয়ে দিবে
+          };
+
           localStorage.setItem('user', JSON.stringify(userToSave));
           checkLoginState();
           setIsAuthModalOpen(false);
