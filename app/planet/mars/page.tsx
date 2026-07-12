@@ -5,7 +5,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { Thermometer, Mountain, Clock, Orbit, Activity, Rocket, FileText, ExternalLink, Calendar, UploadCloud, X, CheckCircle2 } from "lucide-react";
 
-// কাস্টম হুক: নিখুঁত টাইপরাইটার অ্যানিমেশন তৈরি করার জন্য
+
 function useTypewriter(text: string, speed: number = 40, delay: number = 0) {
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
