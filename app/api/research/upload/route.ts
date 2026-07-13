@@ -2,36 +2,32 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import nodemailer from "nodemailer";
-// ফিক্স ১: connectDB পরিবর্তন করে connectToDatabase করা হয়েছে
 import { connectToDatabase } from "@/lib/mongodb"; 
 import { Research } from "@/models/Research";
 
 export async function POST(req: Request) {
   try {
-    // ১. ডাটাবেজ কানেক্ট করা (সঠিক ফাংশন কল করা হয়েছে)
     await connectToDatabase();
 
-    // ২. ফ্রন্টএন্ড থেকে FormData রিসিভ করা
     const formData = await req.formData();
     const file = formData.get("file") as File;
     const name = formData.get("name") as string;
     const email = formData.get("email") as string;
+    const topic = formData.get("topic") as string;
+    const description = formData.get("description") as string;
     const userId = formData.get("userId") as string || "guest";
 
     if (!file) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // ৩. ফাইলটিকে Buffer-এ কনভার্ট করা
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // ৪. ইউনিক ফাইলনেম তৈরি করা (যাতে এক নামের ফাইল ওভাররাইট না হয়)
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     const fileExtension = path.extname(file.name);
     const uniqueFileName = `research-${uniqueSuffix}${fileExtension}`;
     
-    // ৫. প্রজেক্টের রুট ডিরেক্টরিতে 'uploads' ফোল্ডারে ফাইল সেভ করা
     const uploadDir = path.join(process.cwd(), "uploads");
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
@@ -39,10 +35,8 @@ export async function POST(req: Request) {
     const storedFilePath = path.join(uploadDir, uniqueFileName);
     fs.writeFileSync(storedFilePath, buffer);
 
-    // ফাইল সাইজ বের করা
     const fileSizeInMB = (file.size / (1024 * 1024)).toFixed(2) + " MB";
 
-    // ৬. ডাটাবেজে ফাইল ইনফরমেশন সেভ করা
     const submission = await Research.create({
       userId,
       userName: name,
@@ -50,49 +44,47 @@ export async function POST(req: Request) {
       originalFileName: file.name,
       storedFilePath: storedFilePath,
       fileSize: fileSizeInMB,
+      topic: topic,
+      description: description,
       status: "Pending"
     });
 
-    // ７. ইমেইল ট্রান্সপোর্টার সেটআপ (SMTP Configuration)
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS, // অ্যাপ পাসওয়ার্ড ব্যবহার করতে হবে
+        pass: process.env.SMTP_PASS, 
       },
     });
 
-    // ৮. আপনার রিকোয়ারমেন্ট অনুযায়ী ইমেইলের বডি ও সাবজেক্ট তৈরি
+    // 🆕 HTML টেমপ্লেট এবং অ্যাপ্রুভ বাটন যুক্ত করা হয়েছে
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
     const mailOptions = {
       from: process.env.SMTP_USER,
       to: process.env.ADMIN_EMAIL,
-      subject: "New Research File Submitted",
-      text: `A new research file has been submitted.
-User Name: ${name}
-User Email: ${email}
-File Name: ${file.name}
-File Size: ${fileSizeInMB}
-Upload Time: ${new Date().toLocaleString()}
-
-The uploaded file is attached to this email.`,
-      attachments: [
-        {
-          filename: file.name,
-          path: storedFilePath, // এই ফাইলটিই অ্যাটাচমেন্ট হিসেবে চলে যাবে
-        },
-      ],
+      subject: "New Research File Submitted - Action Required",
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; color: #333;">
+          <h2>New Research Submission</h2>
+          <p><strong>Researcher:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Topic:</strong> ${topic}</p>
+          <p><strong>Abstract:</strong> ${description}</p>
+          <p><strong>File Size:</strong> ${fileSizeInMB}</p>
+          <br/>
+          <a href="${baseUrl}/api/research/approve?id=${submission._id}" style="padding: 12px 24px; background-color: #059669; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Approve Paper</a>
+          <p><small style="color: #666; margin-top: 10px; display: block;">Clicking this button will publish the paper to the website.</small></p>
+        </div>
+      `,
+      attachments: [{ filename: file.name, path: storedFilePath }],
     };
 
-    // ৯. ইমেইল সেন্ড করা
     await transporter.sendMail(mailOptions);
-
     return NextResponse.json({ success: true, message: "Submission successful!", data: submission });
     
   } catch (error: unknown) { 
-    // ফিক্স ২: ESLint এরর সমাধানের জন্য 'any' এর বদলে 'unknown' ব্যবহার করা হয়েছে
     const errorMessage = error instanceof Error ? error.message : "Something went wrong";
     console.error("Upload Error:", error);
-    
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

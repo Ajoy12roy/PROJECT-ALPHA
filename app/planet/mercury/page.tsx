@@ -21,7 +21,6 @@ function useTypewriter(text: string, speed: number = 40, delay: number = 0) {
 
   useEffect(() => {
     let interval: NodeJS.Timeout; 
-
     const startTyping = () => {
       setIsTyping(true);
       let i = 0;
@@ -34,13 +33,8 @@ function useTypewriter(text: string, speed: number = 40, delay: number = 0) {
         }
       }, speed);
     };
-
     const timeout = setTimeout(startTyping, delay);
-
-    return () => {
-      clearTimeout(timeout);
-      clearInterval(interval);
-    };
+    return () => { clearTimeout(timeout); clearInterval(interval); };
   }, [text, speed, delay]);
 
   return { displayedText, isTyping };
@@ -61,18 +55,19 @@ export default function MercuryPage() {
     description: "",
   });
   
-  // ফাইল আপলোড এবং ড্র্যাগ-অ্যান্ড-ড্রপ স্টেট
+  // ফাইল আপলোড স্টেট
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false); // সাবমিট চলাকালীন বাটন ডিসেবল করার জন্য
+  const [isSubmitting, setIsSubmitting] = useState(false); 
+
+  // 🆕 ডাটাবেস থেকে অ্যাপ্রুভড পেপার সংরক্ষণের স্টেট
+  const [approvedPapers, setApprovedPapers] = useState<any[]>([]);
   
-  // GSAP Scope Ref
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
-  // টাইপরাইটার ইফেক্ট টেক্সট
   const { displayedText: heroTitle } = useTypewriter("MERCURY", 100, 300);
   const { displayedText: heroSubtitle } = useTypewriter(
     "Mercury is the closest planet to the Sun and the smallest in our solar system. It is a rocky, cratered world with extreme temperature swings, lacking a substantial atmosphere to retain heat.",
@@ -80,7 +75,7 @@ export default function MercuryPage() {
     1000
   );
 
-  // Client-side hydration
+  // 🆕 Client-side hydration & Data Fetching
   useEffect(() => {
     setMounted(true);
     const generatedStars = Array.from({ length: 100 }).map((_, i) => ({
@@ -90,116 +85,63 @@ export default function MercuryPage() {
       duration: `${2 + Math.random() * 4}s`,
     }));
     setStars(generatedStars);
+
+    // পেজ লোড হলে API থেকে Approved পেপারগুলো নিয়ে আসা হচ্ছে
+    fetch('/api/research/get-approved')
+      .then(res => res.json())
+      .then(data => {
+        if(Array.isArray(data)) setApprovedPapers(data);
+      })
+      .catch(err => console.error("Error fetching papers:", err));
   }, []);
 
-  // GSAP Animations 
   useGSAP(() => {
     if (!mounted) return;
+    gsap.fromTo(".fade-up", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 1, stagger: 0.15, ease: "power3.out" });
+    gsap.fromTo(".mercury-globe-container", { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 2, ease: "back.out(1.2)" });
+    gsap.to(".mercury-globe-container", { rotation: 360, duration: 40, repeat: -1, ease: "linear" });
+    gsap.to(".globe-ring", { rotation: -360, duration: 25, repeat: -1, ease: "linear" });
+    gsap.to(".floating-rocket", { y: -15, duration: 2, yoyo: true, repeat: -1, ease: "sine.inOut" });
 
-    // ১. এন্ট্রান্স অ্যানিমেশন (Fade Up)
-    gsap.fromTo(".fade-up", 
-      { opacity: 0, y: 50 }, 
-      { opacity: 1, y: 0, duration: 1, stagger: 0.15, ease: "power3.out" }
-    );
-
-    // ২. গ্লোব স্কেল আপ এবং স্মুথ রোটেশন (Main Globe)
-    gsap.fromTo(".mercury-globe-container",
-      { scale: 0.4, opacity: 0 },
-      { scale: 1, opacity: 1, duration: 2, ease: "back.out(1.2)" }
-    );
-    gsap.to(".mercury-globe-container", {
-      rotation: 360,
-      duration: 40,
-      repeat: -1,
-      ease: "linear"
-    });
-
-    // ৩. রিং রোটেশন (বিপরীত দিকে)
-    gsap.to(".globe-ring", {
-      rotation: -360,
-      duration: 25,
-      repeat: -1,
-      ease: "linear"
-    });
-
-    // ৪. ফ্লোটিং রকেট অ্যানিমেশন (Up and Down)
-    gsap.to(".floating-rocket", {
-      y: -15,
-      duration: 2,
-      yoyo: true,
-      repeat: -1,
-      ease: "sine.inOut"
-    });
-
-    // ৫. VIDEO SECTION স্ক্রল ইফেক্ট
     if (videoContainerRef.current && videoRef.current) {
       gsap.fromTo(videoRef.current, 
         { scale: 1.2, y: 50 }, 
-        { 
-          scale: 1, 
-          y: 0, 
-          ease: "none",
-          scrollTrigger: {
-            trigger: videoContainerRef.current,
-            start: "top bottom",
-            end: "bottom top",
-            scrub: true,
-          }
-        }
+        { scale: 1, y: 0, ease: "none", scrollTrigger: { trigger: videoContainerRef.current, start: "top bottom", end: "bottom top", scrub: true } }
       );
     }
-
   }, { scope: containerRef, dependencies: [mounted] });
 
   // ড্র্যাগ এবং ড্রপ হ্যান্ডলারস
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = () => { setIsDragging(false); };
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files?.[0]) {
-      setSelectedFile(e.dataTransfer.files[0]);
-    }
+    if (e.dataTransfer.files?.[0]) setSelectedFile(e.dataTransfer.files[0]);
   };
 
-  // সাবমিট হ্যান্ডলার (FIXED API KEYS)
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     try {
       const data = new FormData();
-      // 🛠️ FIX: API এর রিকোয়ারমেন্ট অনুযায়ী 'name' এবং অন্যান্য ফিল্ডগুলো সঠিকভাবে পাঠানো হচ্ছে
       data.append("name", formData.researcherName);
       data.append("email", formData.email);
       data.append("topic", formData.topic);
       data.append("description", formData.description);
-      
-      if (selectedFile) {
-        data.append("file", selectedFile);
-      } else {
+      if (selectedFile) data.append("file", selectedFile);
+      else {
         alert("Please select a file to upload.");
         setIsSubmitting(false);
         return;
       }
 
-      // /api/research/upload এন্ডপয়েন্টে রিকোয়েস্ট পাঠানো হচ্ছে
-      const response = await fetch('/api/research/upload', {
-        method: 'POST',
-        body: data,
-      });
+      const response = await fetch('/api/research/upload', { method: 'POST', body: data });
 
       if (response.ok) {
         setIsModalOpen(false);
         setIsSuccessOpen(true);
-        // ফর্ম এবং ফাইল স্টেট রিসেট করা
         setFormData({ researcherName: "", email: "", topic: "Atmospheric Exosphere Analysis", description: "" });
         setSelectedFile(null);
       } else {
@@ -219,18 +161,9 @@ export default function MercuryPage() {
   return (
     <div ref={containerRef} className="min-h-screen bg-slate-50 dark:bg-[#030712] text-slate-800 dark:text-white relative overflow-hidden transition-colors duration-300">
       
-      {/* Background Blinking Stars */}
       <div className="absolute inset-0 pointer-events-none z-0 hidden dark:block overflow-hidden">
         {stars.map((star) => (
-          <div
-            key={star.id}
-            className="absolute w-1 h-1 bg-white rounded-full opacity-30"
-            style={{
-              top: star.top,
-              left: star.left,
-              animation: `pulse ${star.duration} infinite ease-in-out`,
-            }}
-          />
+          <div key={star.id} className="absolute w-1 h-1 bg-white rounded-full opacity-30" style={{ top: star.top, left: star.left, animation: `pulse ${star.duration} infinite ease-in-out` }} />
         ))}
       </div>
 
@@ -239,23 +172,13 @@ export default function MercuryPage() {
         {/* ================= 1. HERO SECTION ================= */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center fade-up">
           <div className="space-y-6">
-            <h3 className="text-xl font-bold text-emerald-600 dark:text-cyan-400 tracking-widest uppercase">
-              The Swift Planet
-            </h3>
+            <h3 className="text-xl font-bold text-emerald-600 dark:text-cyan-400 tracking-widest uppercase">The Swift Planet</h3>
             <h1 className="text-5xl md:text-7xl font-black tracking-tight text-slate-900 dark:text-white min-h-[72px]">
-              {heroTitle}
-              <span className="animate-pulse">|</span>
+              {heroTitle}<span className="animate-pulse">|</span>
             </h1>
-            <p className="text-lg text-slate-700 dark:text-slate-300 leading-relaxed max-w-lg font-medium min-h-[90px]">
-              {heroSubtitle}
-            </p>
+            <p className="text-lg text-slate-700 dark:text-slate-300 leading-relaxed max-w-lg font-medium min-h-[90px]">{heroSubtitle}</p>
             <div className="pt-2">
-              <a 
-                href="https://eyes.nasa.gov/apps/solar-system/#/mercury?rate=-64800&time=2026-07-06T04:19:11.337+00:00"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300"
-              >
+              <a href="https://eyes.nasa.gov/apps/solar-system/#/mercury?rate=-64800&time=2026-07-06T04:19:11.337+00:00" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-8 py-3.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300">
                 Explore 3D Model <ExternalLink className="w-4 h-4" />
               </a>
             </div>
@@ -264,10 +187,7 @@ export default function MercuryPage() {
           {/* Globe and Ring */}
           <div className="relative flex items-center justify-center h-[400px]">
             <div className="mercury-globe-container relative flex items-center justify-center">
-              {/* The Ring */}
               <div className="globe-ring absolute w-[350px] h-[350px] md:w-[450px] md:h-[450px] border-2 border-dashed border-slate-400 dark:border-cyan-500/30 rounded-full" />
-              
-              {/* The Planet */}
               <div className="relative w-64 h-64 md:w-80 md:h-80 rounded-full bg-gradient-to-br from-slate-300 via-slate-500 to-slate-800 dark:from-slate-400 dark:via-slate-600 dark:to-gray-900 shadow-[inset_-20px_-20px_50px_rgba(0,0,0,0.5),0_0_50px_rgba(100,116,139,0.3)] flex items-center justify-center overflow-hidden">
                 <div className="absolute top-10 left-10 w-12 h-12 rounded-full bg-black/20 shadow-inner" />
                 <div className="absolute bottom-20 right-16 w-24 h-24 rounded-full bg-black/10 shadow-inner" />
@@ -297,18 +217,9 @@ export default function MercuryPage() {
         {/* ================= 3. VIDEO SECTION ================= */}
         <section className="fade-up space-y-6 max-w-5xl mx-auto">
           <div ref={videoContainerRef} className="relative w-full aspect-video rounded-[2rem] overflow-hidden bg-slate-800 border-4 border-white dark:border-slate-800 shadow-2xl flex items-center justify-center group cursor-pointer">
-            <video 
-              ref={videoRef}
-              src="/videos/mars-overview.mp4" 
-              autoPlay 
-              muted 
-              loop 
-              playsInline
-              className="absolute inset-0 w-full h-full object-cover transform scale-110"
-            />
+            <video ref={videoRef} src="/videos/mars-overview.mp4" autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover transform scale-110" />
             <div className="absolute inset-0 bg-slate-900/40 group-hover:bg-slate-900/20 transition-colors z-10" />
           </div>
-          
           <div className="text-center px-4">
             <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">The Desolate World</h3>
             <p className="text-slate-700 dark:text-slate-300 max-w-3xl mx-auto text-base md:text-lg leading-relaxed">
@@ -346,7 +257,7 @@ export default function MercuryPage() {
           </div>
         </section>
 
-        {/* ================= 5. RESEARCH PAPERS ================= */}
+        {/* ================= 5. RESEARCH PAPERS (🆕 ডাইনামিক + স্ট্যাটিক কার্ড) ================= */}
         <section className="fade-up">
           <div className="flex items-center gap-4 mb-10">
             <div className="p-3 bg-emerald-100 dark:bg-cyan-500/10 rounded-xl">
@@ -354,7 +265,25 @@ export default function MercuryPage() {
             </div>
             <h2 className="text-3xl font-black text-slate-900 dark:text-white">Research Papers</h2>
           </div>
+          
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {/* 🆕 ডাটাবেস থেকে আসা Approved পেপারগুলো রেন্ডার করা হচ্ছে */}
+            {approvedPapers.map((paper: any, index: number) => (
+              <a 
+                key={`dynamic-${index}`} 
+                href="#" 
+                className="group p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:shadow-lg hover:border-emerald-500 dark:hover:border-cyan-400 transition-all duration-300 hover:-translate-y-1 cursor-pointer block"
+              >
+                <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-cyan-950 flex items-center justify-center mb-4 group-hover:bg-emerald-100 dark:group-hover:bg-cyan-500/20 transition-colors">
+                  <FileText className="w-6 h-6 text-emerald-600 dark:text-cyan-400" />
+                </div>
+                <h4 className="text-lg font-bold mb-2 text-slate-800 dark:text-white">{paper.topic}</h4>
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Submitted by {paper.userName}</p>
+              </a>
+            ))}
+
+            {/* আগের স্ট্যাটিক পেপারগুলো */}
             {[
               { title: "Core Contraction and Planetary Shrinkage", link: "" },
               { title: "Water Ice in Permanently Shadowed Craters", link: "" },
@@ -364,7 +293,7 @@ export default function MercuryPage() {
               { title: "The Caloris Basin Impact Event", link: "" }
             ].map((paper, index) => (
               <a 
-                key={index} 
+                key={`static-${index}`} 
                 href={paper.link || "#"} 
                 target="_blank" 
                 rel="noopener noreferrer" 

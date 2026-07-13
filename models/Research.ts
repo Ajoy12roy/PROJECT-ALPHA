@@ -7,6 +7,8 @@ const ResearchSchema = new Schema({
   originalFileName: { type: String, required: true },
   storedFilePath: { type: String, required: true },
   fileSize: { type: String, required: true },
+  topic: { type: String }, // টপিক সেভ করার জন্য
+  description: { type: String }, // ডেসক্রিপশন সেভ করার জন্য
   uploadDate: { type: Date, default: Date.now },
   status: { type: String, default: "Pending" }
 });
