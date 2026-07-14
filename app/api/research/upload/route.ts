@@ -28,13 +28,16 @@ export async function POST(req: Request) {
     const fileExtension = path.extname(file.name);
     const uniqueFileName = `research-${uniqueSuffix}${fileExtension}`;
     
-    const uploadDir = path.join(process.cwd(), "uploads");
+    // 🛠️ পরিবর্তন ১: ফাইলটি 'public/uploads' ফোল্ডারে সেভ করা হচ্ছে
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
     const storedFilePath = path.join(uploadDir, uniqueFileName);
     fs.writeFileSync(storedFilePath, buffer);
 
+    // 🛠️ পরিবর্তন ২: ডাটাবেসে সেভ করার জন্য পাবলিক পাথ তৈরি (এটি ব্রাউজারে কাজ করবে)
+    const publicFilePath = `/uploads/${uniqueFileName}`;
     const fileSizeInMB = (file.size / (1024 * 1024)).toFixed(2) + " MB";
 
     const submission = await Research.create({
@@ -42,7 +45,7 @@ export async function POST(req: Request) {
       userName: name,
       userEmail: email,
       originalFileName: file.name,
-      storedFilePath: storedFilePath,
+      storedFilePath: publicFilePath, // পাবলিক লিঙ্ক ডাটাবেসে সেভ হচ্ছে
       fileSize: fileSizeInMB,
       topic: topic,
       description: description,
@@ -57,7 +60,6 @@ export async function POST(req: Request) {
       },
     });
 
-    // 🆕 HTML টেমপ্লেট এবং অ্যাপ্রুভ বাটন যুক্ত করা হয়েছে
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
     const mailOptions = {
       from: process.env.SMTP_USER,
@@ -72,11 +74,10 @@ export async function POST(req: Request) {
           <p><strong>Abstract:</strong> ${description}</p>
           <p><strong>File Size:</strong> ${fileSizeInMB}</p>
           <br/>
-          <a href="${baseUrl}/api/research/approve?id=${submission._id}" style="padding: 12px 24px; background-color: #059669; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Approve Paper</a>
-          <p><small style="color: #666; margin-top: 10px; display: block;">Clicking this button will publish the paper to the website.</small></p>
+          <a href="${baseUrl}/api/research/approve?id=${submission._id}" style="padding: 12px 24px; background-color: #059669; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Approve & Publish</a>
         </div>
       `,
-      attachments: [{ filename: file.name, path: storedFilePath }],
+      attachments: [{ filename: file.name, path: storedFilePath }], // লোকাল পাথ ব্যবহার করে ইমেইলে এটাচ করা হচ্ছে
     };
 
     await transporter.sendMail(mailOptions);

@@ -6,15 +6,13 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { 
   Thermometer, ShieldAlert, Clock, Moon, Rocket, 
-  FileText, Activity, Wind, Hexagon, ExternalLink, Satellite, Info, X, UploadCloud, CheckCircle2
+  FileText, Activity, Wind, Hexagon, ExternalLink, Satellite, Info, X, UploadCloud, CheckCircle2, Download, Maximize, ZoomIn, ZoomOut
 } from "lucide-react";
 
-// Register ScrollTrigger
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
 }
 
-// কাস্টম হুক: নিখুঁত টাইপরাইটার অ্যানিমেশন তৈরি করার জন্য
 function useTypewriter(text: string, speed: number = 40, delay: number = 0) {
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -40,12 +38,21 @@ function useTypewriter(text: string, speed: number = 40, delay: number = 0) {
   return { displayedText, isTyping };
 }
 
+// 🆕 ফাইল টাইপ চেক করার ইউটিলিটি ফাংশন
+function getFileType(url: string) {
+  if (!url) return 'unknown';
+  const extension = url.split('.').pop()?.toLowerCase();
+  if (['pdf'].includes(extension || '')) return 'pdf';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension || '')) return 'image';
+  if (['mp4', 'webm', 'ogg'].includes(extension || '')) return 'video';
+  return 'unknown';
+}
+
 export default function MercuryPage() {
   const [mounted, setMounted] = useState(false);
   const [activeGas, setActiveGas] = useState<number | null>(0);
   const [stars, setStars] = useState<{ id: number; top: string; left: string; duration: string }[]>([]);
   
-  // মোডাল/পপআপ স্টেট ম্যানেজমেন্ট
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -55,14 +62,17 @@ export default function MercuryPage() {
     description: "",
   });
   
-  // ফাইল আপলোড স্টেট
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false); 
 
-  // 🆕 ডাটাবেস থেকে অ্যাপ্রুভড পেপার সংরক্ষণের স্টেট
   const [approvedPapers, setApprovedPapers] = useState<any[]>([]);
+  
+  // 🆕 ফাইল প্রিভিউ মডালের স্টেট
+  const [previewData, setPreviewData] = useState<any | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [imgZoom, setImgZoom] = useState(1);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -75,7 +85,6 @@ export default function MercuryPage() {
     1000
   );
 
-  // 🆕 Client-side hydration & Data Fetching
   useEffect(() => {
     setMounted(true);
     const generatedStars = Array.from({ length: 100 }).map((_, i) => ({
@@ -86,11 +95,18 @@ export default function MercuryPage() {
     }));
     setStars(generatedStars);
 
-    // পেজ লোড হলে API থেকে Approved পেপারগুলো নিয়ে আসা হচ্ছে
+    // ডাটা ফেচিং এবং "dj" কার্ড ফিল্টারিং
     fetch('/api/research/get-approved')
       .then(res => res.json())
       .then(data => {
-        if(Array.isArray(data)) setApprovedPapers(data);
+        if(Array.isArray(data)) {
+          // 🛠️ হটফিক্স: ডাটাবেস থেকে আসা "dj" কার্ডগুলো ফ্রন্টএন্ডে রিমুভ করা হচ্ছে
+          const cleanedData = data.filter(paper => 
+            !paper.topic?.toLowerCase().includes("dj") && 
+            !paper.userName?.toLowerCase().includes("dj")
+          );
+          setApprovedPapers(cleanedData);
+        }
       })
       .catch(err => console.error("Error fetching papers:", err));
   }, []);
@@ -111,7 +127,6 @@ export default function MercuryPage() {
     }
   }, { scope: containerRef, dependencies: [mounted] });
 
-  // ড্র্যাগ এবং ড্রপ হ্যান্ডলারস
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = () => { setIsDragging(false); };
   const handleDrop = (e: React.DragEvent) => {
@@ -156,6 +171,14 @@ export default function MercuryPage() {
     }
   };
 
+  // 🆕 কার্ডে ক্লিক হ্যান্ডলার
+  const openPreview = (e: React.MouseEvent, paper: any) => {
+    e.preventDefault();
+    setPreviewData(paper);
+    setImgZoom(1);
+    setIsPreviewOpen(true);
+  };
+
   if (!mounted) return null;
 
   return (
@@ -184,7 +207,6 @@ export default function MercuryPage() {
             </div>
           </div>
           
-          {/* Globe and Ring */}
           <div className="relative flex items-center justify-center h-[400px]">
             <div className="mercury-globe-container relative flex items-center justify-center">
               <div className="globe-ring absolute w-[350px] h-[350px] md:w-[450px] md:h-[450px] border-2 border-dashed border-slate-400 dark:border-cyan-500/30 rounded-full" />
@@ -198,7 +220,7 @@ export default function MercuryPage() {
           </div>
         </section>
 
-        {/* ================= 2. 4 STAT CARDS ================= */}
+        {/* ================= 2. STAT CARDS ================= */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 fade-up">
           {[
             { icon: Thermometer, label: "Temperature", value: "-173°C to 427°C" },
@@ -228,7 +250,7 @@ export default function MercuryPage() {
           </div>
         </section>
 
-        {/* ================= 4. SATELLITES & MISSIONS ================= */}
+        {/* ================= 4. MISSIONS ================= */}
         <section className="fade-up">
           <div className="flex flex-col items-center justify-center gap-2 mb-14">
             <div className="relative flex flex-col items-center">
@@ -257,7 +279,7 @@ export default function MercuryPage() {
           </div>
         </section>
 
-        {/* ================= 5. RESEARCH PAPERS (🆕 ডাইনামিক + স্ট্যাটিক কার্ড) ================= */}
+        {/* ================= 5. RESEARCH PAPERS ================= */}
         <section className="fade-up">
           <div className="flex items-center gap-4 mb-10">
             <div className="p-3 bg-emerald-100 dark:bg-cyan-500/10 rounded-xl">
@@ -268,11 +290,12 @@ export default function MercuryPage() {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             
-            {/* 🆕 ডাটাবেস থেকে আসা Approved পেপারগুলো রেন্ডার করা হচ্ছে */}
+            {/* 🛠️ ডাইনামিক কার্ডগুলো এখন মডাল ওপেন করবে */}
             {approvedPapers.map((paper: any, index: number) => (
               <a 
                 key={`dynamic-${index}`} 
                 href="#" 
+                onClick={(e) => openPreview(e, paper)}
                 className="group p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:shadow-lg hover:border-emerald-500 dark:hover:border-cyan-400 transition-all duration-300 hover:-translate-y-1 cursor-pointer block"
               >
                 <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-cyan-950 flex items-center justify-center mb-4 group-hover:bg-emerald-100 dark:group-hover:bg-cyan-500/20 transition-colors">
@@ -280,21 +303,23 @@ export default function MercuryPage() {
                 </div>
                 <h4 className="text-lg font-bold mb-2 text-slate-800 dark:text-white">{paper.topic}</h4>
                 <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Submitted by {paper.userName}</p>
+                {/* ফাইলের সাইজ এবং ডেসক্রিপশন ছোট্ট করে দেখানো যায় চাইলে */}
+                <p className="text-xs text-slate-400 mt-2 truncate">{paper.originalFileName}</p>
               </a>
             ))}
 
-            {/* আগের স্ট্যাটিক পেপারগুলো */}
+            {/* স্ট্যাটিক পেপারগুলো */}
             {[
-              { title: "Core Contraction and Planetary Shrinkage", link: "" },
-              { title: "Water Ice in Permanently Shadowed Craters", link: "" },
-              { title: "Mercury's Magnetic Field Generation", link: "" },
-              { title: "Exosphere Composition and Solar Wind", link: "" },
-              { title: "Volcanism and Surface Formation", link: "" },
-              { title: "The Caloris Basin Impact Event", link: "" }
+              { title: "Core Contraction and Planetary Shrinkage", link: "#" },
+              { title: "Water Ice in Permanations Shadowed Craters", link: "#" },
+              { title: "Mercury's Magnetic Field Generation", link: "#" },
+              { title: "Exosphere Composition and Solar Wind", link: "#" },
+              { title: "Volcanism and Surface Formation", link: "#" },
+              { title: "The Caloris Basin Impact Event", link: "#" }
             ].map((paper, index) => (
               <a 
                 key={`static-${index}`} 
-                href={paper.link || "#"} 
+                href={paper.link} 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="group p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:shadow-lg hover:border-emerald-500 dark:hover:border-cyan-400 transition-all duration-300 hover:-translate-y-1 cursor-pointer block"
@@ -559,6 +584,94 @@ export default function MercuryPage() {
             >
               Dismiss Interface
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================= 🆕 FILE VIEWER MODAL (PDF/IMG/VIDEO) ================= */}
+      {isPreviewOpen && previewData && (
+        <div className="fixed inset-0 z-[300] bg-slate-900/90 dark:bg-black/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-300">
+          
+          {/* Top Navbar for Viewer */}
+          <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/50">
+            <div className="flex flex-col">
+              <h3 className="text-white font-bold text-lg">{previewData.topic || "Research Paper"}</h3>
+              <p className="text-slate-400 text-xs">Submitted by {previewData.userName} • {previewData.fileSize}</p>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              
+              {/* Image specific controls (Zoom) */}
+              {getFileType(previewData.storedFilePath) === 'image' && (
+                <div className="flex items-center gap-2 bg-white/10 rounded-lg p-1 mr-4">
+                  <button onClick={() => setImgZoom(prev => Math.max(0.5, prev - 0.2))} className="p-2 text-white hover:bg-white/20 rounded-md transition"><ZoomOut className="w-5 h-5"/></button>
+                  <span className="text-white text-xs font-mono w-12 text-center">{Math.round(imgZoom * 100)}%</span>
+                  <button onClick={() => setImgZoom(prev => Math.min(3, prev + 0.2))} className="p-2 text-white hover:bg-white/20 rounded-md transition"><ZoomIn className="w-5 h-5"/></button>
+                </div>
+              )}
+
+              {/* Download Button */}
+              <a 
+                href={previewData.storedFilePath} 
+                download={previewData.originalFileName || "research_file"}
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition-colors"
+              >
+                <Download className="w-4 h-4" /> Download
+              </a>
+              
+              <button 
+                onClick={() => setIsPreviewOpen(false)}
+                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* Dynamic Content Viewer Area */}
+          <div className="flex-1 overflow-auto flex items-center justify-center p-4">
+            
+            {getFileType(previewData.storedFilePath) === 'pdf' ? (
+              // 브라우জারের নেটিভ পিডিএফ রিডার (সবচেয়ে বেস্ট অপশন, এতে নেটিভ স্ক্রল, জুম, পেজিনেশন থাকে)
+              <iframe 
+                src={`${previewData.storedFilePath}#view=FitH`} 
+                className="w-full h-full max-w-5xl bg-white rounded-xl shadow-2xl"
+                title="PDF Viewer"
+              />
+            ) : getFileType(previewData.storedFilePath) === 'image' ? (
+              // ইমেজ ভিউয়ার
+              <div className="w-full h-full overflow-auto flex items-center justify-center">
+                 {/* eslint-disable-next-line @next/next/no-img-element */}
+                 <img 
+                   src={previewData.storedFilePath} 
+                   alt={previewData.topic}
+                   style={{ transform: `scale(${imgZoom})`, transition: 'transform 0.2s ease-out' }}
+                   className="max-w-none shadow-2xl rounded-lg"
+                 />
+              </div>
+            ) : getFileType(previewData.storedFilePath) === 'video' ? (
+              // ভিডিও প্লেয়ার
+              <video 
+                src={previewData.storedFilePath} 
+                controls 
+                autoPlay
+                className="max-w-5xl w-full max-h-[80vh] rounded-xl shadow-2xl bg-black"
+              />
+            ) : (
+              // অজানা ফাইল টাইপ হলে সরাসরি ডাউনলোড করতে বলবে
+              <div className="text-center text-white bg-white/5 p-12 rounded-2xl border border-white/10">
+                <FileText className="w-16 h-16 mx-auto mb-4 text-slate-500" />
+                <h3 className="text-xl font-bold mb-2">Preview not available</h3>
+                <p className="text-slate-400 mb-6">This file type cannot be previewed directly in the browser.</p>
+                <a 
+                  href={previewData.storedFilePath} 
+                  download
+                  className="px-6 py-3 bg-cyan-600 text-white rounded-lg font-bold"
+                >
+                  Download File
+                </a>
+              </div>
+            )}
           </div>
         </div>
       )}
