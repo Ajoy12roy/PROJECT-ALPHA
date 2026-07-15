@@ -9,6 +9,7 @@ const ResearchSchema = new Schema({
   fileSize: { type: String, required: true },
   topic: { type: String }, // টপিক সেভ করার জন্য
   description: { type: String }, // ডেসক্রিপশন সেভ করার জন্য
+  planet: { type: String, required: true }, // গ্রহের নাম
   uploadDate: { type: Date, default: Date.now },
   status: { type: String, default: "Pending" }
 });

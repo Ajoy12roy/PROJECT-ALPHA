@@ -15,6 +15,7 @@ export async function POST(req: Request) {
     const email = formData.get("email") as string;
     const topic = formData.get("topic") as string;
     const description = formData.get("description") as string;
+    const planet = formData.get("planet") as string; // গ্রহের নাম
     const userId = formData.get("userId") as string || "guest";
 
     if (!file) {
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
       fileSize: fileSizeInMB,
       topic: topic,
       description: description,
+      planet: planet, // গ্রহের নাম সেভ করা
       status: "Pending"
     });
 

@@ -39,9 +39,32 @@ function useTypewriter(text: string, speed: number = 40, delay: number = 0) {
 }
 
 // 🆕 ফাইল টাইপ চেক করার ইউটিলিটি ফাংশন
+function normalizeStoredFileUrl(storedFilePath: string | undefined | null) {
+  if (!storedFilePath) return "";
+  // Expected in DB: "/uploads/<filename>" (public URL)
+  if (storedFilePath.startsWith("/uploads/")) return storedFilePath;
+  // If saved as absolute filesystem path like ".../public/uploads/<filename>"
+  const idx = storedFilePath.lastIndexOf(`${"uploads"}${pathSep()}`);
+  // Fallback heuristic: if it contains "/uploads/" anywhere, keep trailing part
+  const uploadsIdx = storedFilePath.lastIndexOf("/uploads/");
+  if (uploadsIdx !== -1) return storedFilePath.slice(uploadsIdx);
+
+  // If Windows path backslashes: "uploads\\file.pdf"
+  const backslashIdx = storedFilePath.lastIndexOf("uploads\\");
+  if (backslashIdx !== -1) return `/uploads/${storedFilePath.slice(backslashIdx + "uploads\\".length)}`;
+
+  return storedFilePath;
+}
+
+function pathSep() {
+  // avoid importing path in client; separator only used for string construction
+  return "/";
+}
+
 function getFileType(url: string) {
   if (!url) return 'unknown';
-  const extension = url.split('.').pop()?.toLowerCase();
+  const normalized = normalizeStoredFileUrl(url);
+  const extension = normalized.split('.').pop()?.toLowerCase();
   if (['pdf'].includes(extension || '')) return 'pdf';
   if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension || '')) return 'image';
   if (['mp4', 'webm', 'ogg'].includes(extension || '')) return 'video';
@@ -96,7 +119,7 @@ export default function MercuryPage() {
     setStars(generatedStars);
 
     // ডাটা ফেচিং এবং "dj" কার্ড ফিল্টারিং
-    fetch('/api/research/get-approved')
+    fetch('/api/research/get-approved?planet=Mercury')
       .then(res => res.json())
       .then(data => {
         if(Array.isArray(data)) {
@@ -137,14 +160,18 @@ export default function MercuryPage() {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isSubmitting) return;
+
     setIsSubmitting(true);
-    
+
     try {
       const data = new FormData();
       data.append("name", formData.researcherName);
       data.append("email", formData.email);
       data.append("topic", formData.topic);
       data.append("description", formData.description);
+      data.append("planet", "Mercury");
       if (selectedFile) data.append("file", selectedFile);
       else {
         alert("Please select a file to upload.");
@@ -174,7 +201,13 @@ export default function MercuryPage() {
   // 🆕 কার্ডে ক্লিক হ্যান্ডলার
   const openPreview = (e: React.MouseEvent, paper: any) => {
     e.preventDefault();
-    setPreviewData(paper);
+
+    const normalizedStoredFilePath = normalizeStoredFileUrl(paper?.storedFilePath);
+    setPreviewData({
+      ...paper,
+      storedFilePath: normalizedStoredFilePath,
+    });
+
     setImgZoom(1);
     setIsPreviewOpen(true);
   };
@@ -430,7 +463,7 @@ export default function MercuryPage() {
             className="px-10 py-4 bg-emerald-600 hover:bg-emerald-700 dark:bg-cyan-500 dark:hover:bg-cyan-600 text-white dark:text-slate-950 font-bold rounded-2xl shadow-[0_10px_30px_rgba(5,150,105,0.3)] dark:shadow-[0_10px_30px_rgba(6,182,212,0.3)] hover:-translate-y-1 transition-all duration-300 flex items-center gap-3 text-lg"
           >
             <Info className="w-6 h-6" />
-            Learn About Mercury Missions
+            Explore Mercury
           </button>
         </div>
 
@@ -582,7 +615,7 @@ export default function MercuryPage() {
               onClick={() => setIsSuccessOpen(false)}
               className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 dark:bg-cyan-500 dark:hover:bg-cyan-600 text-white dark:text-slate-950 text-sm font-bold rounded-xl shadow-md transition-all active:scale-95"
             >
-              Dismiss Interface
+              Done
             </button>
           </div>
         </div>
@@ -611,8 +644,8 @@ export default function MercuryPage() {
               )}
 
               {/* Download Button */}
-              <a 
-                href={previewData.storedFilePath} 
+              <a
+                href={normalizeStoredFileUrl(previewData.storedFilePath)}
                 download={previewData.originalFileName || "research_file"}
                 className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition-colors"
               >

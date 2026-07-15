@@ -11,12 +11,20 @@ export async function GET(req: Request) {
 
     await connectToDatabase();
     
-    // ১. ডাটাবেসে স্ট্যাটাস আপডেট করে 'Approved' করা হলো
-    await Research.findByIdAndUpdate(id, { status: 'Approved' });
+    // ডাটাবেসে স্ট্যাটাস আপডেট করে 'Approved' করা হলো
+    const result = await Research.findByIdAndUpdate(id, { status: 'Approved' }, { new: true });
 
-    // ২. HTML সাকসেস পেজ বাদ দিয়ে সরাসরি Mercury পেজে রিডাইরেক্ট (Redirect) করা হচ্ছে
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    return NextResponse.redirect(`${baseUrl}/planet/mercury`);
+    if (!result) {
+      return NextResponse.json({ error: "Research not found" }, { status: 404 });
+    }
+
+    // JSON সাকসেস রেসপন্স রিটার্ন করা (রিডাইরেক্ট নয়)
+    return NextResponse.json({
+      success: true,
+      message: "Research approved and published successfully!",
+      planet: result.planet,
+      topic: result.topic
+    }, { status: 200 });
 
   } catch (error) {
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
